@@ -30,7 +30,7 @@ class _BottomNavScreenState extends State<BottomNavScreen> {
   int _selectedIndex = 0;
 
   final List<Widget> _screens = [
-    Pantalla1Screen(), // Materias y estudiante
+    Pantalla1screen(), // Materias y estudiante
     Pantalla2Screen(), // Libros y biblioteca
   ];
 

@@ -1,132 +1,53 @@
 import 'package:flutter/material.dart';
 
-// === MODELOS ===
-class Materia {
-  String nombre;
-  List<double> notas = [];
-
-  Materia(this.nombre);
-
-  void agregarNota(double nota) {
-    notas.add(nota);
-  }
-
-  double calcularPromedio() {
-    if (notas.isEmpty) return 0;
-    return notas.reduce((a, b) => a + b) / notas.length;
-  }
-
-  String get info {
-    String notasStr = notas.map((n) => n.toStringAsFixed(1)).join(', ');
-    return 'Materia: $nombre\nNotas: [$notasStr]\nPromedio: ${calcularPromedio().toStringAsFixed(2)}';
-  }
-}
-
-class Estudiante {
-  String nombre;
-  List<Materia> materias = [];
-
-  Estudiante(this.nombre);
-
-  void agregarMateria(Materia materia) {
-    materias.add(materia);
-  }
-
-  double promedioGeneral() {
-    if (materias.isEmpty) return 0;
-    double total = materias.fold(0, (suma, m) => suma + m.calcularPromedio());
-    return total / materias.length;
-  }
-
-  List<String> obtenerInformacion() {
-    return materias.map((m) => m.info).toList()
-      ..add('Promedio General: ${promedioGeneral().toStringAsFixed(2)}');
-  }
-}
-
-// === PANTALLA PRINCIPAL ===
-class Pantalla1Screen extends StatefulWidget {
-  const Pantalla1Screen({super.key});
+class Pantalla1screen extends StatefulWidget {
+  const Pantalla1screen({super.key});
 
   @override
-  State<Pantalla1Screen> createState() => _Pantalla1ScreenState();
+  State<Pantalla1screen> createState() => _Pantalla1screenState();
 }
 
-class _Pantalla1ScreenState extends State<Pantalla1Screen> {
-  final Estudiante estudiante = Estudiante('Carlos');
+class _Pantalla1screenState extends State<Pantalla1screen> {
+  List<String> materiasDisponibles = [];
+  String? nombreEstudiante;
+  Map<String, List<double>> materiasConNotas = {};
 
-  void _mostrarDialogoAgregarMateria() {
-    final TextEditingController nombreController = TextEditingController();
-    final TextEditingController nota1Controller = TextEditingController();
-    final TextEditingController nota2Controller = TextEditingController();
-    final TextEditingController nota3Controller = TextEditingController();
+  void _agregarMateria() {
+    final TextEditingController materiaController = TextEditingController();
 
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Agregar Materia'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nombreController,
-                decoration: const InputDecoration(labelText: 'Nombre de la materia'),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: nota1Controller,
-                decoration: const InputDecoration(labelText: 'Nota 1'),
-                keyboardType: TextInputType.number,
-              ),
-              TextField(
-                controller: nota2Controller,
-                decoration: const InputDecoration(labelText: 'Nota 2'),
-                keyboardType: TextInputType.number,
-              ),
-              TextField(
-                controller: nota3Controller,
-                decoration: const InputDecoration(labelText: 'Nota 3'),
-                keyboardType: TextInputType.number,
-              ),
-            ],
-          ),
+        title: const Text('Agregar nueva materia'),
+        content: TextField(
+          controller: materiaController,
+          decoration: const InputDecoration(labelText: 'Nombre de la materia'),
         ),
         actions: [
           TextButton(
             onPressed: () {
-              FocusScope.of(context).unfocus();
-              final nombre = nombreController.text.trim();
-              final nota1 = double.tryParse(nota1Controller.text.trim());
-              final nota2 = double.tryParse(nota2Controller.text.trim());
-              final nota3 = double.tryParse(nota3Controller.text.trim());
-
-              bool notasValidas = [nota1, nota2, nota3].every((n) => n != null && n >= 0 && n <= 10);
-
-              if (nombre.isNotEmpty && notasValidas) {
-                final materia = Materia(nombre);
-                materia.agregarNota(nota1!);
-                materia.agregarNota(nota2!);
-                materia.agregarNota(nota3!);
-
-                setState(() {
-                  estudiante.agregarMateria(materia);
-                });
-
-                Navigator.pop(context);
-              } else {
+              final materia = materiaController.text.trim();
+              if (materia.isEmpty) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Por favor ingresa un nombre y notas válidas entre 0 y 10.')),
+                  const SnackBar(content: Text('El nombre de la materia no puede estar vacío')),
                 );
+                return;
               }
+              if (materiasDisponibles.contains(materia)) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('La materia ya existe')),
+                );
+                return;
+              }
+              setState(() {
+                materiasDisponibles.add(materia);
+              });
+              Navigator.pop(context);
             },
             child: const Text('Agregar'),
           ),
           TextButton(
-            onPressed: () {
-              FocusScope.of(context).unfocus(); 
-              Navigator.pop(context);
-            },
+            onPressed: () => Navigator.pop(context),
             child: const Text('Cancelar'),
           ),
         ],
@@ -134,39 +55,127 @@ class _Pantalla1ScreenState extends State<Pantalla1Screen> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final info = estudiante.obtenerInformacion();
+  void _ingresarNotas(String materia) {
+    final TextEditingController estudianteController = TextEditingController(text: nombreEstudiante ?? '');
+    final TextEditingController nota1Controller = TextEditingController();
+    final TextEditingController nota2Controller = TextEditingController();
+    final TextEditingController nota3Controller = TextEditingController();
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Estudiante - Materias')),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: ElevatedButton(
-              onPressed: _mostrarDialogoAgregarMateria,
-              child: const Text('Agregar Materia'),
-            ),
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text('Ingresar notas para $materia'),
+        content: SingleChildScrollView(
+          child: Column(
+            children: [
+              TextField(
+                controller: estudianteController,
+                decoration: const InputDecoration(labelText: 'Nombre del estudiante'),
+              ),
+              TextField(
+                controller: nota1Controller,
+                decoration: const InputDecoration(labelText: 'Nota 1'),
+                keyboardType: TextInputType.numberWithOptions(decimal: true),
+              ),
+              TextField(
+                controller: nota2Controller,
+                decoration: const InputDecoration(labelText: 'Nota 2'),
+                keyboardType: TextInputType.numberWithOptions(decimal: true),
+              ),
+              TextField(
+                controller: nota3Controller,
+                decoration: const InputDecoration(labelText: 'Nota 3'),
+                keyboardType: TextInputType.numberWithOptions(decimal: true),
+              ),
+            ],
           ),
-          Expanded(
-            child: info.isEmpty
-                ? const Center(child: Text('No hay materias aún.'))
-                : ListView.builder(
-                    itemCount: info.length,
-                    itemBuilder: (context, index) => ListTile(
-                      title: Text(info[index]),
-                    ),
-                  ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              final estudiante = estudianteController.text.trim();
+              final n1 = double.tryParse(nota1Controller.text.trim());
+              final n2 = double.tryParse(nota2Controller.text.trim());
+              final n3 = double.tryParse(nota3Controller.text.trim());
+
+              if (estudiante.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Ingrese el nombre del estudiante')),
+                );
+                return;
+              }
+
+              if (n1 == null || n2 == null || n3 == null || n1 < 0 || n1 > 10 || n2 < 0 || n2 > 10 || n3 < 0 || n3 > 10) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Ingrese notas válidas entre 0 y 10')),
+                );
+                return;
+              }
+
+              setState(() {
+                nombreEstudiante = estudiante;
+                materiasConNotas[materia] = [n1, n2, n3];
+              });
+
+              Navigator.pop(context);
+            },
+            child: const Text('Guardar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
           ),
         ],
       ),
     );
   }
-}
 
-void main() {
-  runApp(const MaterialApp(
-    home: Pantalla1Screen(),
-  ));
+  double _calcularPromedio(List<double> notas) {
+    if (notas.isEmpty) return 0;
+    return notas.reduce((a, b) => a + b) / notas.length;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Ingreso de Materias y Notas')),
+      body: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          children: [
+            ElevatedButton.icon(
+              icon: const Icon(Icons.add),
+              label: const Text('Agregar Materia'),
+              onPressed: _agregarMateria,
+            ),
+            const SizedBox(height: 20),
+            Text(
+              nombreEstudiante == null ? 'No se ha ingresado estudiante' : 'Estudiante: $nombreEstudiante',
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 10),
+            Expanded(
+              child: ListView.builder(
+                itemCount: materiasDisponibles.length,
+                itemBuilder: (context, index) {
+                  final materia = materiasDisponibles[index];
+                  final notas = materiasConNotas[materia];
+                  final promedio = (notas != null) ? _calcularPromedio(notas) : 0;
+
+                  return ListTile(
+                    title: Text(materia),
+                    subtitle: notas == null
+                        ? const Text('No hay notas ingresadas')
+                        : Text('Notas: ${notas.map((n) => n.toStringAsFixed(1)).join(', ')}\nPromedio: ${promedio.toStringAsFixed(2)}'),
+                    trailing: const Icon(Icons.edit),
+                    onTap: () => _ingresarNotas(materia),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
